@@ -8,16 +8,21 @@
 # Frontend: http://localhost:3000
 # Backend:  http://localhost:8080 (also used by CLI/daemon)
 #
-# Network isolation: containers are on an internal-only network and cannot
-# make outbound internet calls. Ports are bound to 127.0.0.1 so the stack
-# is only reachable from the local machine. The agent daemon runs outside
-# Docker on the host and connects to localhost:8080 as normal.
+# Network isolation: all app containers live on an internal-only Docker
+# network and cannot make outbound internet calls. A lightweight nginx
+# gateway sits on both the internal network and a host-access network,
+# reverse-proxying published ports into the internal services. Ports are
+# bound to 127.0.0.1 so the stack is only reachable from the local
+# machine. The agent daemon runs outside Docker on the host and connects
+# to localhost:8080 as normal.
 
 name: multica
 
 networks:
   internal:
     internal: true
+  host-access:
+    internal: false
 
 services:
   postgres:
@@ -44,8 +49,6 @@ services:
         condition: service_healthy
     networks:
       - internal
-    ports:
-      - "127.0.0.1:${PORT:-8080}:8080"
     volumes:
       - backend_uploads:/app/data/uploads
     environment:
@@ -77,10 +80,23 @@ services:
       - backend
     networks:
       - internal
-    ports:
-      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     environment:
       HOSTNAME: "0.0.0.0"
+    restart: unless-stopped
+
+  gateway:
+    image: nginx:alpine
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - internal
+      - host-access
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./docker/gateway.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
 
 volumes:
