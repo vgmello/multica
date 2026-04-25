@@ -11,10 +11,9 @@
 # Network isolation: all app containers live on an internal-only Docker
 # network and cannot make outbound internet calls. A lightweight nginx
 # gateway sits on both the internal network and a host-access network,
-# reverse-proxying published ports into the internal services. Ports are
-# bound to 127.0.0.1 so the stack is only reachable from the local
-# machine. The agent daemon runs outside Docker on the host and connects
-# to localhost:8080 as normal.
+# reverse-proxying published ports into the internal services. The agent
+# daemon runs outside Docker on the host and connects to localhost:8080
+# as normal.
 
 name: multica
 
@@ -93,8 +92,8 @@ services:
       - internal
       - host-access
     ports:
-      - "127.0.0.1:${PORT:-8080}:8080"
-      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+      - "${PORT:-8080}:8080"
+      - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./docker/gateway.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
